@@ -1,0 +1,22 @@
+# Google APIs
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.116.0
+
+# LinkedIn
+linkedin-api==2.2.1
+selenium==4.18.1
+webdriver-manager==4.0.1
+
+# AI - Claude
+anthropic==0.18.1
+
+# Utilities
+python-dotenv==1.0.1
+pytz==2024.1
+schedule==1.2.1
+python-dateutil==2.9.0
+
+# Data handling
+beautifulsoup4==4.12.3
+lxml==5.1.0

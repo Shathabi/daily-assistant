@@ -1,0 +1,37 @@
+# Environment variables and secrets
+.env
+.env.local
+config/credentials.json
+config/token.pickle
+config/calendar_token.pickle
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files
+brief-*.txt
+brief-*.html
