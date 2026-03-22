@@ -23,13 +23,15 @@ class EmailClient:
         """Initialize Gmail API client"""
         self.service = self._authenticate()
 
-        # News sender lists from .env
-        self.world_news_senders = os.getenv('WORLD_NEWS_SENDERS', '').split(',')
-        self.growth_senders = os.getenv('GROWTH_MARKETING_SENDERS', '').split(',')
+        # Email category lists from .env
+        self.news_senders = os.getenv('NEWS_SENDERS', '').split(',')
+        self.startup_senders = os.getenv('STARTUP_SENDERS', '').split(',')
+        self.personal_senders = os.getenv('PERSONAL_SENDERS', '').split(',')
 
         # Clean up sender names
-        self.world_news_senders = [s.strip() for s in self.world_news_senders if s.strip()]
-        self.growth_senders = [s.strip() for s in self.growth_senders if s.strip()]
+        self.news_senders = [s.strip() for s in self.news_senders if s.strip()]
+        self.startup_senders = [s.strip() for s in self.startup_senders if s.strip()]
+        self.personal_senders = [s.strip() for s in self.personal_senders if s.strip()]
 
     def _authenticate(self):
         """Authenticate with Gmail API"""
@@ -57,17 +59,17 @@ class EmailClient:
 
         return build('gmail', 'v1', credentials=creds)
 
-    def get_priority_emails(self, max_results=10):
+    def get_personal_emails(self, max_results=10):
         """
-        Get priority emails from inbox (unread, from last 24 hours)
+        Get personal emails from individuals (filtering out promotional)
 
         Returns:
             list: Email dictionaries with sender, subject, snippet
         """
         try:
-            # Query for unread emails from last 24 hours
+            # Query for unread emails from last 24 hours, excluding promotions
             yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
-            query = f'is:unread after:{yesterday}'
+            query = f'is:unread after:{yesterday} -category:promotions -category:social -category:forums'
 
             results = self.service.users().messages().list(
                 userId='me',
@@ -81,27 +83,29 @@ class EmailClient:
             for msg in messages:
                 email_data = self._get_email_details(msg['id'])
 
-                # Skip news senders (they go in separate categories)
-                if not self._is_news_sender(email_data['sender']):
-                    emails.append(email_data)
+                # Skip if from news or startup senders (they have their own categories)
+                if not self._is_categorized_sender(email_data['sender']):
+                    # Include if from personal senders OR from individuals (not bulk/marketing)
+                    if self._is_personal_sender(email_data['sender']) or self._is_from_individual(email_data):
+                        emails.append(email_data)
 
             return emails
 
         except Exception as e:
-            print(f"Error fetching emails: {e}")
+            print(f"Error fetching personal emails: {e}")
             return []
 
-    def get_world_news(self, max_results=5):
-        """Get emails from world news sources"""
+    def get_news_emails(self, max_results=5):
+        """Get emails from news sources"""
         return self._get_emails_from_senders(
-            self.world_news_senders,
+            self.news_senders,
             max_results
         )
 
-    def get_growth_news(self, max_results=5):
-        """Get emails from growth marketing sources"""
+    def get_startup_emails(self, max_results=5):
+        """Get emails from startup/growth sources"""
         return self._get_emails_from_senders(
-            self.growth_senders,
+            self.startup_senders,
             max_results
         )
 
@@ -183,17 +187,59 @@ class EmailClient:
                 'snippet': ''
             }
 
-    def _is_news_sender(self, sender):
-        """Check if sender is a news source"""
+    def _is_categorized_sender(self, sender):
+        """Check if sender belongs to news or startup categories"""
         sender_lower = sender.lower()
 
-        all_news_senders = self.world_news_senders + self.growth_senders
+        all_category_senders = self.news_senders + self.startup_senders
 
-        for news_sender in all_news_senders:
-            if news_sender.lower() in sender_lower:
+        for category_sender in all_category_senders:
+            if category_sender.lower() in sender_lower:
                 return True
 
         return False
+
+    def _is_personal_sender(self, sender):
+        """Check if sender is in personal senders list"""
+        sender_lower = sender.lower()
+
+        for personal_sender in self.personal_senders:
+            if personal_sender.lower() in sender_lower:
+                return True
+
+        return False
+
+    def _is_from_individual(self, email_data):
+        """
+        Check if email is from an individual (not bulk/marketing)
+        Uses heuristics to filter out promotional emails
+        """
+        sender = email_data.get('sender', '').lower()
+        subject = email_data.get('subject', '').lower()
+
+        # Filter out common promotional indicators
+        promotional_keywords = [
+            'noreply', 'no-reply', 'donotreply', 'newsletter', 'marketing',
+            'notifications', 'automated', 'updates@', 'info@', 'hello@',
+            'support@', 'team@', 'news@', 'alert', 'promo'
+        ]
+
+        # Check sender
+        for keyword in promotional_keywords:
+            if keyword in sender:
+                return False
+
+        # Check subject for promotional language
+        promo_subject_keywords = [
+            'unsubscribe', 'sale', 'discount', 'offer', 'deal',
+            'limited time', 'act now', 'don\'t miss'
+        ]
+
+        for keyword in promo_subject_keywords:
+            if keyword in subject:
+                return False
+
+        return True
 
 
 if __name__ == "__main__":

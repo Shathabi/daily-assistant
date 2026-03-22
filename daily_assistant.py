@@ -80,18 +80,18 @@ class DailyAssistant:
         print("Collecting data...")
         data = {}
 
-        # Email
+        # Email (3 categories)
         if self.email_client:
             try:
-                data['emails'] = self.email_client.get_priority_emails(10)
-                data['world_news'] = self.email_client.get_world_news(3)
-                data['growth_news'] = self.email_client.get_growth_news(3)
-                print(f"✓ Collected {len(data['emails'])} emails, {len(data['world_news'])} world news, {len(data['growth_news'])} growth articles")
+                data['news_emails'] = self.email_client.get_news_emails(5)
+                data['startup_emails'] = self.email_client.get_startup_emails(5)
+                data['personal_emails'] = self.email_client.get_personal_emails(10)
+                print(f"✓ Collected {len(data['news_emails'])} news, {len(data['startup_emails'])} startup, {len(data['personal_emails'])} personal emails")
             except Exception as e:
                 print(f"⚠ Email collection failed: {e}")
-                data['emails'] = []
-                data['world_news'] = []
-                data['growth_news'] = []
+                data['news_emails'] = []
+                data['startup_emails'] = []
+                data['personal_emails'] = []
 
         # Calendar
         if self.calendar_client:
@@ -179,10 +179,22 @@ class DailyAssistant:
 
         sections = [f"🌅 Good Morning, Abi! - {now.strftime('%b %d, %I:%M %p ET')}"]
 
-        # Email
-        if data.get('emails'):
-            sections.append(f"\n📧 EMAIL ({len(data['emails'])} priority)")
-            for email in data['emails'][:5]:
+        # News
+        if data.get('news_emails'):
+            sections.append(f"\n📰 NEWS ({len(data['news_emails'])} new)")
+            for email in data['news_emails'][:3]:
+                sections.append(f"• {email.get('subject', 'No subject')}")
+
+        # Startup
+        if data.get('startup_emails'):
+            sections.append(f"\n🚀 STARTUP ({len(data['startup_emails'])} new)")
+            for email in data['startup_emails'][:3]:
+                sections.append(f"• {email.get('subject', 'No subject')}")
+
+        # Personal Emails
+        if data.get('personal_emails'):
+            sections.append(f"\n📧 PERSONAL ({len(data['personal_emails'])} new)")
+            for email in data['personal_emails'][:5]:
                 sections.append(f"• {email.get('subject', 'No subject')}")
 
         # Calendar

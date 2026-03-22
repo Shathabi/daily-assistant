@@ -115,7 +115,7 @@ Provide a brief summary (2-4 bullet points) for a morning text brief."""
         Create a complete daily brief from all data sources
 
         Args:
-            data: Dict with keys: emails, calendar, linkedin, world_news, growth_news, jobs, affirmation
+            data: Dict with keys: news_emails, startup_emails, personal_emails, calendar, linkedin, jobs, affirmation
 
         Returns:
             str: Complete formatted brief for SMS
@@ -130,11 +130,23 @@ Provide a brief summary (2-4 bullet points) for a morning text brief."""
         header = f"🌅 Good Morning, Abi! - {now.strftime('%b %d, %I:%M %p ET')}"
         sections.append(header)
 
-        # Email summary
-        if data.get('emails'):
-            email_count = len(data['emails'])
-            sections.append(f"\n📧 EMAIL ({email_count} priority)")
-            sections.append(self.summarize_emails(data['emails']))
+        # News Emails
+        if data.get('news_emails'):
+            news_count = len(data['news_emails'])
+            sections.append(f"\n📰 NEWS ({news_count} new)")
+            sections.append(self.summarize_news(data['news_emails'], "news"))
+
+        # Startup Emails
+        if data.get('startup_emails'):
+            startup_count = len(data['startup_emails'])
+            sections.append(f"\n🚀 STARTUP ({startup_count} new)")
+            sections.append(self.summarize_news(data['startup_emails'], "startup insights"))
+
+        # Personal Emails
+        if data.get('personal_emails'):
+            email_count = len(data['personal_emails'])
+            sections.append(f"\n📧 PERSONAL ({email_count} new)")
+            sections.append(self.summarize_emails(data['personal_emails']))
 
         # Calendar
         if data.get('calendar'):
@@ -147,16 +159,6 @@ Provide a brief summary (2-4 bullet points) for a morning text brief."""
             msg_count = len(data['linkedin'])
             sections.append(f"\n💼 LINKEDIN ({msg_count} new)")
             sections.append(self.summarize_linkedin_messages(data['linkedin']))
-
-        # World News
-        if data.get('world_news'):
-            sections.append(f"\n📰 WORLD NEWS")
-            sections.append(self.summarize_news(data['world_news'], "world news"))
-
-        # Growth Marketing
-        if data.get('growth_news'):
-            sections.append(f"\n📈 GROWTH MARKETING")
-            sections.append(self.summarize_news(data['growth_news'], "growth marketing"))
 
         # Jobs
         if data.get('jobs'):
