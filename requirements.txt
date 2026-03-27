@@ -9,7 +9,7 @@ selenium==4.18.1
 webdriver-manager==4.0.1
 
 # AI - Claude
-anthropic==0.18.1
+anthropic==0.86.0
 
 # Utilities
 python-dotenv==1.0.1

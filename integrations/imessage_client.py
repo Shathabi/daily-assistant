@@ -70,22 +70,23 @@ class iMessageClient:
         Returns:
             bool: Success status
         """
-        # Escape quotes in message
-        escaped_message = message.replace('"', '\\"').replace('\\', '\\\\')
-
-        # AppleScript to send iMessage
+        # Use a more reliable AppleScript approach by passing message via stdin
+        # This avoids escaping issues with special characters
         applescript = f'''
-        tell application "Messages"
-            set targetService to 1st account whose service type = iMessage
-            set targetBuddy to participant "{self.recipient}" of targetService
-            send "{escaped_message}" to targetBuddy
-        end tell
+        on run argv
+            set messageText to item 1 of argv
+            tell application "Messages"
+                set targetService to 1st account whose service type = iMessage
+                set targetBuddy to participant "{self.recipient}" of targetService
+                send messageText to targetBuddy
+            end tell
+        end run
         '''
 
         try:
-            # Execute AppleScript
+            # Execute AppleScript with message as argument
             process = subprocess.run(
-                ['osascript', '-e', applescript],
+                ['osascript', '-e', applescript, message],
                 capture_output=True,
                 text=True,
                 timeout=10
