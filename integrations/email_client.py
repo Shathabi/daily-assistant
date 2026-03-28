@@ -49,6 +49,13 @@ class EmailClient:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
+                # Check if running non-interactively (e.g., via launchd)
+                import sys
+                if not sys.stdin.isatty():
+                    raise RuntimeError(
+                        "Gmail authentication required but running non-interactively. "
+                        "Please run manually first to authenticate."
+                    )
                 flow = InstalledAppFlow.from_client_secrets_file(
                     credentials_path, SCOPES)
                 creds = flow.run_local_server(port=0)
