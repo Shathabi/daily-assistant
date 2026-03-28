@@ -83,27 +83,42 @@ class iMessageClient:
         end run
         '''
 
-        try:
-            # Execute AppleScript with message as argument
-            process = subprocess.run(
-                ['osascript', '-e', applescript, message],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+        import time
 
-            if process.returncode == 0:
-                return True
-            else:
-                print(f"AppleScript error: {process.stderr}")
+        # Retry logic for when Mac just woke up
+        max_retries = 3
+        retry_delay = 5
+
+        for attempt in range(max_retries):
+            try:
+                # Execute AppleScript with message as argument
+                process = subprocess.run(
+                    ['osascript', '-e', applescript, message],
+                    capture_output=True,
+                    text=True,
+                    timeout=30  # Increased from 10 to 30 seconds
+                )
+
+                if process.returncode == 0:
+                    return True
+                else:
+                    print(f"AppleScript error (attempt {attempt + 1}/{max_retries}): {process.stderr}")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
+                    return False
+
+            except subprocess.TimeoutExpired:
+                print(f"AppleScript command timed out (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                return False
+            except Exception as e:
+                print(f"Error sending iMessage: {e}")
                 return False
 
-        except subprocess.TimeoutExpired:
-            print("AppleScript command timed out")
-            return False
-        except Exception as e:
-            print(f"Error sending iMessage: {e}")
-            return False
+        return False
 
     def _split_message(self, text, max_length=2000):
         """
