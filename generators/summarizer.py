@@ -166,6 +166,10 @@ Provide a brief summary (2-4 bullet points) for a morning text brief."""
             sections.append(f"\n🎯 JOBS ({job_count} new matches)")
             sections.append(self._format_jobs(data['jobs']))
 
+        # Stock News Reminder
+        sections.append(f"\n📈 STOCKS")
+        sections.append("Check today's top stock trades: https://stocknews.ai/")
+
         # Affirmation
         if data.get('affirmation'):
             sections.append(f"\n💪 AFFIRMATION")

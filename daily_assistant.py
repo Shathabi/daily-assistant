@@ -209,6 +209,10 @@ class DailyAssistant:
             for job in data['jobs'][:3]:
                 sections.append(f"• {job.get('title')} @ {job.get('company')}")
 
+        # Stock News Reminder
+        sections.append(f"\n📈 STOCKS")
+        sections.append("Check today's top stock trades: https://stocknews.ai/")
+
         # Affirmation
         if data.get('affirmation'):
             sections.append(f"\n💪 AFFIRMATION")

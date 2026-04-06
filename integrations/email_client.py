@@ -20,8 +20,17 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 class EmailClient:
     def __init__(self):
-        """Initialize Gmail API client"""
-        self.service = self._authenticate()
+        """Initialize Gmail API client with multiple accounts"""
+        self.services = []
+
+        # Authenticate primary account (shathabi@gmail.com)
+        self.services.append(self._authenticate('config/token.pickle'))
+
+        # Authenticate secondary account (abi.mullusoge@gmail.com)
+        try:
+            self.services.append(self._authenticate('config/token2.pickle'))
+        except Exception as e:
+            print(f"  ⚠ Second Gmail account not authenticated: {e}")
 
         # Email category lists from .env
         self.news_senders = os.getenv('NEWS_SENDERS', '').split(',')
@@ -33,10 +42,9 @@ class EmailClient:
         self.startup_senders = [s.strip() for s in self.startup_senders if s.strip()]
         self.personal_senders = [s.strip() for s in self.personal_senders if s.strip()]
 
-    def _authenticate(self):
+    def _authenticate(self, token_path):
         """Authenticate with Gmail API"""
         creds = None
-        token_path = 'config/token.pickle'
         credentials_path = 'config/credentials.json'
 
         # Load existing token
@@ -53,7 +61,7 @@ class EmailClient:
                 import sys
                 if not sys.stdin.isatty():
                     raise RuntimeError(
-                        "Gmail authentication required but running non-interactively. "
+                        f"Gmail authentication required for {token_path} but running non-interactively. "
                         "Please run manually first to authenticate."
                     )
                 flow = InstalledAppFlow.from_client_secrets_file(
@@ -69,104 +77,79 @@ class EmailClient:
     def get_personal_emails(self, max_results=10):
         """
         Get personal emails from individuals (filtering out promotional)
-
-        Returns:
-            list: Email dictionaries with sender, subject, snippet
+        Fetches from all connected Gmail accounts.
         """
-        try:
-            # Query for unread emails from last 24 hours, excluding promotions
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
-            query = f'is:unread after:{yesterday} -category:promotions -category:social -category:forums'
+        all_emails = []
+        for service in self.services:
+            try:
+                yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
+                query = f'is:unread after:{yesterday} -category:promotions -category:social -category:forums'
 
-            results = self.service.users().messages().list(
-                userId='me',
-                q=query,
-                maxResults=max_results
-            ).execute()
+                results = service.users().messages().list(
+                    userId='me',
+                    q=query,
+                    maxResults=max_results
+                ).execute()
 
-            messages = results.get('messages', [])
-            emails = []
+                messages = results.get('messages', [])
 
-            for msg in messages:
-                email_data = self._get_email_details(msg['id'])
+                for msg in messages:
+                    email_data = self._get_email_details(service, msg['id'])
 
-                # Skip if from news or startup senders (they have their own categories)
-                if not self._is_categorized_sender(email_data['sender']):
-                    # Include if from personal senders OR from individuals (not bulk/marketing)
-                    if self._is_personal_sender(email_data['sender']) or self._is_from_individual(email_data):
-                        emails.append(email_data)
+                    if not self._is_categorized_sender(email_data['sender']):
+                        if self._is_personal_sender(email_data['sender']) or self._is_from_individual(email_data):
+                            all_emails.append(email_data)
 
-            return emails
+            except Exception as e:
+                print(f"Error fetching personal emails: {e}")
 
-        except Exception as e:
-            print(f"Error fetching personal emails: {e}")
-            return []
+        return all_emails[:max_results]
 
     def get_news_emails(self, max_results=5):
-        """Get emails from news sources"""
-        return self._get_emails_from_senders(
-            self.news_senders,
-            max_results
-        )
+        """Get emails from news sources across all accounts"""
+        return self._get_emails_from_senders(self.news_senders, max_results)
 
     def get_startup_emails(self, max_results=5):
-        """Get emails from startup/growth sources"""
-        return self._get_emails_from_senders(
-            self.startup_senders,
-            max_results
-        )
+        """Get emails from startup/growth sources across all accounts"""
+        return self._get_emails_from_senders(self.startup_senders, max_results)
 
     def _get_emails_from_senders(self, senders, max_results=5):
         """
-        Get unread emails from specific senders
-
-        Args:
-            senders: List of sender names
-            max_results: Maximum emails to return
-
-        Returns:
-            list: Email dictionaries
+        Get unread emails from specific senders across all accounts.
         """
         if not senders:
             return []
 
-        try:
-            # Build query for multiple senders
-            sender_queries = ' OR '.join([f'from:{sender}' for sender in senders])
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
-            query = f'is:unread ({sender_queries}) after:{yesterday}'
+        all_emails = []
+        for service in self.services:
+            try:
+                sender_queries = ' OR '.join([f'from:{sender}' for sender in senders])
+                yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y/%m/%d')
+                query = f'is:unread ({sender_queries}) after:{yesterday}'
 
-            results = self.service.users().messages().list(
-                userId='me',
-                q=query,
-                maxResults=max_results
-            ).execute()
+                results = service.users().messages().list(
+                    userId='me',
+                    q=query,
+                    maxResults=max_results
+                ).execute()
 
-            messages = results.get('messages', [])
-            emails = []
+                messages = results.get('messages', [])
 
-            for msg in messages:
-                email_data = self._get_email_details(msg['id'])
-                emails.append(email_data)
+                for msg in messages:
+                    email_data = self._get_email_details(service, msg['id'])
+                    all_emails.append(email_data)
 
-            return emails
+            except Exception as e:
+                print(f"Error fetching emails from senders: {e}")
 
-        except Exception as e:
-            print(f"Error fetching emails from senders: {e}")
-            return []
+        return all_emails[:max_results]
 
-    def _get_email_details(self, msg_id):
+    def _get_email_details(self, service, msg_id):
         """
-        Get full email details
-
-        Args:
-            msg_id: Gmail message ID
-
-        Returns:
-            dict: Email data
+        Get full email details from a specific service.
         """
         try:
-            message = self.service.users().messages().get(
+            message = service.users().messages().get(
                 userId='me',
                 id=msg_id,
                 format='full'
